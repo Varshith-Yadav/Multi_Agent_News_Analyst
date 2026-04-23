@@ -1,0 +1,38 @@
+from app.db.session import SessionLocal
+from app.models.article import Article
+
+
+def get_articles_by_query(query: str, limit: int = 10):
+    db = SessionLocal()
+
+    articles = (
+        db.query(Article)
+        .filter(Article.title.ilike(f"%{query}%"))
+        .order_by(Article.published_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    db.close()
+
+    return [
+        {
+            "id": a.id,
+            "title": a.title,
+            "content": a.content,
+            "source": a.source,
+            "url": a.url,
+        }
+        for a in articles
+    ]
+
+
+
+def get_all_articles(limit: int = 50):
+    db = SessionLocal()
+
+    articles = db.query(Article).limit(limit).all()
+
+    db.close()
+
+    return [a.content for a in articles]

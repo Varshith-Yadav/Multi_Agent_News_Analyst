@@ -1,0 +1,12 @@
+.git
+.pytest_cache
+.mypy_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+ui/node_modules
+ui/dist
+docker
