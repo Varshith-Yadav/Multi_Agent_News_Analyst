@@ -3,107 +3,96 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
     environment:
-      ENV: ${ENV:-dev}
+      ENV: prod
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@postgres:5432/mana}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.x.ai/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_API_KEY_ENV: ${LLM_API_KEY_ENV:-GEMINI_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-gemini-2.0-flash-lite}
-      LLM_FALLBACK_MODELS_CSV: ${LLM_FALLBACK_MODELS_CSV:-}
+      LLM_API_KEY_ENV: ${LLM_API_KEY_ENV:-XAI_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-grok-4}
+      LLM_FALLBACK_MODELS_CSV: ${LLM_FALLBACK_MODELS_CSV:-grok-4-latest,grok-3-mini}
       LLM_FALLBACKS_JSON: ${LLM_FALLBACKS_JSON:-[]}
+      LLM_ENABLE_STUB_FALLBACK: ${LLM_ENABLE_STUB_FALLBACK:-true}
+      XAI_API_KEY: ${XAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
-      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-change-me-in-production}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}
+      FRONTEND_ORIGINS_CSV: ${FRONTEND_ORIGINS_CSV:-http://localhost,http://127.0.0.1}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:?set AUTH_SECRET_KEY in .env}
       AUTH_TOKEN_EXPIRE_MINUTES: ${AUTH_TOKEN_EXPIRE_MINUTES:-60}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      ENFORCE_ENCRYPTION: ${ENFORCE_ENCRYPTION:-false}
+      AUTH_SEED_USERS_JSON: ${AUTH_SEED_USERS_JSON:?set AUTH_SEED_USERS_JSON in .env}
+      ALLOW_PUBLIC_SIGNUP: ${ALLOW_PUBLIC_SIGNUP:-false}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}
+      ENFORCE_ENCRYPTION: ${ENFORCE_ENCRYPTION:-true}
       ENFORCE_COPYRIGHT_CONTROLS: ${ENFORCE_COPYRIGHT_CONTROLS:-true}
-    volumes:
-      - ./app:/app/app
-      - ./scripts:/app/scripts
-      - ./requirements.txt:/app/requirements.txt:ro
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 20s
+      start_period: 30s
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
+    restart: unless-stopped
     command: python -m app.core.worker
     environment:
-      ENV: ${ENV:-dev}
+      ENV: prod
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@postgres:5432/mana}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.x.ai/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_API_KEY_ENV: ${LLM_API_KEY_ENV:-GEMINI_API_KEY}
-      LLM_MODEL: ${LLM_MODEL:-gemini-2.0-flash-lite}
-      LLM_FALLBACK_MODELS_CSV: ${LLM_FALLBACK_MODELS_CSV:-}
+      LLM_API_KEY_ENV: ${LLM_API_KEY_ENV:-XAI_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-grok-4}
+      LLM_FALLBACK_MODELS_CSV: ${LLM_FALLBACK_MODELS_CSV:-grok-4-latest,grok-3-mini}
       LLM_FALLBACKS_JSON: ${LLM_FALLBACKS_JSON:-[]}
+      LLM_ENABLE_STUB_FALLBACK: ${LLM_ENABLE_STUB_FALLBACK:-true}
+      XAI_API_KEY: ${XAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
-      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-change-me-in-production}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
-      ENFORCE_ENCRYPTION: ${ENFORCE_ENCRYPTION:-false}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:?set AUTH_SECRET_KEY in .env}
+      AUTH_SEED_USERS_JSON: ${AUTH_SEED_USERS_JSON:?set AUTH_SEED_USERS_JSON in .env}
+      ALLOW_PUBLIC_SIGNUP: ${ALLOW_PUBLIC_SIGNUP:-false}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}
+      ENFORCE_ENCRYPTION: ${ENFORCE_ENCRYPTION:-true}
       ENFORCE_COPYRIGHT_CONTROLS: ${ENFORCE_COPYRIGHT_CONTROLS:-true}
-    volumes:
-      - ./app:/app/app
-      - ./scripts:/app/scripts
-      - ./requirements.txt:/app/requirements.txt:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   frontend:
-    image: node:20-alpine
-    working_dir: /frontend
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
-    environment:
-      VITE_CORE_API_BASE_URL: ${VITE_CORE_API_BASE_URL:-http://localhost:8000}
-      VITE_API_USERNAME: ${VITE_API_USERNAME:-analyst}
-      VITE_API_PASSWORD: ${VITE_API_PASSWORD:-analyst123}
-    volumes:
-      - ./ui:/frontend
-      - frontend_node_modules:/frontend/node_modules
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      args:
+        VITE_CORE_API_BASE_URL: ${VITE_CORE_API_BASE_URL:-/api}
+    restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "${APP_PORT:-80}:80"
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-mana}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -114,9 +103,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     command: redis-server --appendonly yes
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -125,21 +113,6 @@ services:
       timeout: 5s
       retries: 5
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-    profiles:
-      - search
-    environment:
-      discovery.type: single-node
-      xpack.security.enabled: "false"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-
 volumes:
   postgres_data:
   redis_data:
-  elasticsearch_data:
-  frontend_node_modules:

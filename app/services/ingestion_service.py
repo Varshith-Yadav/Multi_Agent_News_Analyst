@@ -1,5 +1,11 @@
-from dateutil import parser as date_parser
+from datetime import datetime
+
 from sqlalchemy.exc import SQLAlchemyError
+
+try:
+    from dateutil import parser as date_parser
+except Exception:  # pragma: no cover - optional dependency fallback
+    date_parser = None  # type: ignore[assignment]
 
 from app.db.session import SessionLocal
 from app.models.article import Article
@@ -12,7 +18,11 @@ def _to_datetime(value: str | None):
     if not value:
         return None
     try:
-        return date_parser.parse(value).replace(tzinfo=None)
+        if date_parser is not None:
+            parsed = date_parser.parse(value)
+        else:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed.replace(tzinfo=None)
     except Exception:
         return None
 

@@ -41,13 +41,19 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> TokenRespon
 
 @router.post("/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(req: SignupRequest) -> TokenResponse:
+    settings = get_settings()
+    if not settings.allow_public_signup:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Public signup is disabled for this environment.",
+        )
+
     try:
         username, roles = register_user(req.username, req.password)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     token = create_access_token(username, roles)
-    settings = get_settings()
     audit_log("signup_completed", {"user": username, "roles": roles})
     return TokenResponse(
         access_token=token,

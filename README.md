@@ -1,106 +1,96 @@
-﻿# Multi-Agent News Analyst
+# Multi-Agent News Analyst
 
-Generative AI platform to aggregate, verify, analyze, and synthesize news from diverse sources in near real-time.
+Containerized news analysis platform with a FastAPI backend, Redis-backed worker queue, Postgres storage, and a Vite/React dashboard.
 
-## Repository Structure
+## Production Stack
 
-- `ingestion/` - News ingestion microservice (connectors, scheduling, deduplication).
-- `backend/` - Core API for agents, reports, trends, and verification.
-- `ui/` - Web dashboard.
-- `agents/` - Specialized AI agent logic.
-- `apps/` - Reserved for other runtime apps (e.g., worker).
-- `services/` - Shared domain services (fact-checking, ranking, source registry, etc.).
-- `pipelines/` - Streaming and batch processing pipelines.
-- `packages/` - Reusable shared modules, schemas, prompts, and evaluation assets.
-- `infra/` - Deployment and operations infrastructure.
-- `data/` - Local data zones for raw, staged, curated, and vectorized artifacts.
-- `tests/` - Unit, integration, end-to-end, and agent evaluation tests.
-- `docs/` - Architecture, product, API, and runbooks.
-- `scripts/` - Utility scripts for setup, maintenance, and operations.
+- `backend` - FastAPI API on port `8000`
+- `worker` - asynchronous job processor
+- `frontend` - static production build served by Nginx on port `80`
+- `postgres` - relational storage
+- `redis` - queue and job state store
 
-## Ingestion Service
+The production frontend proxies `/api/*` requests to the backend, so the browser talks to a single origin.
 
-- Location: `ingestion`
-- Run:
+## Production Readiness Changes
 
-```bash
-pip install -r requirements.txt
-uvicorn news_ingestion.main:app --app-dir ingestion/src --reload --port 8010
-```
+- Removed deploy-time reliance on dev servers and hot reload
+- Added production Docker image for the frontend
+- Enforced non-default `AUTH_SECRET_KEY` and `ENCRYPTION_KEY` in `prod`
+- Replaced built-in demo users in production with explicit `AUTH_SEED_USERS_JSON`
+- Disabled public signup by default in production
+- Fixed frontend lint errors that would fail CI
 
-## Core API (Phase 2–3)
+## Deploy
 
-- Location: `backend`
-- Run:
+1. Copy the example environment file:
 
 ```bash
-pip install -r requirements.txt
-set PYTHONPATH=agents
-uvicorn mana_api.main:app --app-dir backend/src --reload --port 8020
+cp .env.example .env
 ```
 
-## Web Dashboard
+2. Edit `.env` and set these values before deploying:
 
-- Location: `ui`
-- Run:
+- `AUTH_SECRET_KEY`
+- `ENCRYPTION_KEY`
+- `AUTH_SEED_USERS_JSON`
+- `XAI_API_KEY` (Grok) or your provider-specific API key
+- `FRONTEND_ORIGIN` and `FRONTEND_ORIGINS_CSV`
+- `POSTGRES_PASSWORD`
+
+LLM defaults are set to Grok (`LLM_BASE_URL=https://api.x.ai/v1`, `LLM_MODEL=grok-4`).
+If Grok is temporarily unavailable, configure `LLM_FALLBACK_MODELS_CSV` / `LLM_FALLBACKS_JSON`.
+
+3. Build and start the stack:
+
+```bash
+docker compose up --build -d
+```
+
+4. Open the app:
+
+- `http://localhost` if deploying on the same machine
+- or your mapped domain if deployed remotely
+
+## Useful Commands
+
+Check merged Compose config:
+
+```bash
+docker compose config
+```
+
+View logs:
+
+```bash
+docker compose logs -f
+```
+
+Stop the stack:
+
+```bash
+docker compose down
+```
+
+## Local Quality Checks
+
+Frontend:
 
 ```bash
 cd ui
-npm install
-npm run dev
+npm run lint
+npm run test
+npm run build
 ```
 
-## API Authentication and RBAC
-
-Protected endpoints use OAuth2 password flow with JWT bearer tokens.
-
-1. Sign up (optional, auto-login token returned):
+Backend syntax:
 
 ```bash
-curl -X POST http://localhost:8000/signup \
-  -H "Content-Type: application/json" \
-  -d "{\"username\":\"newuser\",\"password\":\"strongpass123\"}"
+python -m compileall app
 ```
 
-2. Fetch token:
+## Notes
 
-```bash
-curl -X POST http://localhost:8000/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=analyst&password=analyst123"
-```
-
-3. Use token with protected APIs:
-
-```bash
-curl -X POST http://localhost:8000/analyze \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d "{\"query\":\"AI regulation\",\"report_format\":\"weekly_trend_report\"}"
-```
-
-Roles:
-- `viewer`: can fetch results and send follow-up questions
-- `analyst`: viewer + can submit analysis jobs
-- `admin`: full access
-
-## LLM Configuration (Provider-Agnostic)
-
-Default runtime is Gemini (OpenAI-compatible endpoint), but you can switch providers by env only.
-
-Primary model:
-
-```bash
-LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
-LLM_MODEL=gemini-2.0-flash-lite
-LLM_API_KEY_ENV=GEMINI_API_KEY
-GEMINI_API_KEY=your_real_key_here
-```
-
-Optional cross-provider fallbacks:
-
-```bash
-LLM_FALLBACKS_JSON=[{"name":"openai-mini","base_url":"https://api.openai.com/v1","model":"gpt-4o-mini","api_key_env":"OPENAI_API_KEY"},{"name":"ollama-local","base_url":"http://host.docker.internal:11434/v1","model":"llama3.2:3b","api_key":"ollama"}]
-```
-
-Fallback order is: primary model first, then entries from `LLM_FALLBACKS_JSON` in listed order.
+- Production signup is disabled unless `ALLOW_PUBLIC_SIGNUP=true`.
+- Seeded users come from `AUTH_SEED_USERS_JSON`; no insecure default users are loaded in `prod`.
+- The backend and worker both require Redis and Postgres to be healthy before startup.

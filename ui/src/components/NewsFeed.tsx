@@ -35,6 +35,7 @@ const NewsFeed = ({
   isReportLoading,
 }: NewsFeedProps) => {
   const verificationItems = report?.verified_claims ?? [];
+  const sourceItems = report?.source_attribution ?? [];
   const [followupQuestion, setFollowupQuestion] = useState("");
   const [followupMode, setFollowupMode] = useState<
     "follow_up" | "refine_topic" | "opposing_viewpoints"
@@ -92,7 +93,7 @@ const NewsFeed = ({
               <Sparkles className="h-4 w-4 text-primary" />
               Executive Summary
             </h3>
-            <p className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+            <p className="whitespace-pre-line break-words text-xs leading-relaxed text-muted-foreground">
               {report.summary || "No summary available."}
             </p>
           </div>
@@ -107,6 +108,31 @@ const NewsFeed = ({
             <span>
               Confidence: <span className="font-semibold text-foreground">{formatPercent(report.confidence)}</span>
             </span>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-foreground">Top Sources</h4>
+            {sourceItems.length === 0 && (
+              <p className="text-xs text-muted-foreground">No source links available for this run.</p>
+            )}
+            {sourceItems.slice(0, 5).map((source, index) => (
+              <div
+                key={`${source.url ?? source.title ?? "source"}-${index}`}
+                className="min-w-0 text-xs"
+              >
+                <a
+                  href={source.url || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="line-clamp-2 break-all text-primary hover:underline"
+                >
+                  {source.title || source.source || "Untitled source"}
+                </a>
+                <span className="ml-2 break-words text-muted-foreground">
+                  ({source.source || "unknown"})
+                </span>
+              </div>
+            ))}
           </div>
         </article>
       )}
@@ -153,7 +179,7 @@ const NewsFeed = ({
                   Verification #{index + 1}
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="break-words text-xs leading-relaxed text-muted-foreground">
                 {item.claim || "Claim details unavailable."}
               </p>
               <p className="mt-1 text-[11px] text-muted-foreground">

@@ -3,7 +3,11 @@ import os
 from typing import Any
 
 import requests
-from dateutil import parser as date_parser
+
+try:
+    from dateutil import parser as date_parser
+except Exception:  # pragma: no cover - optional dependency fallback
+    date_parser = None  # type: ignore[assignment]
 
 
 API_KEY = os.getenv("NEWS_API_KEY")
@@ -13,7 +17,10 @@ def _parse_datetime(value: str | None) -> str:
     if not value:
         return datetime.now(UTC).isoformat()
     try:
-        parsed = date_parser.parse(value)
+        if date_parser is not None:
+            parsed = date_parser.parse(value)
+        else:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=UTC)
         return parsed.astimezone(UTC).isoformat()

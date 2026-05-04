@@ -29,3 +29,5 @@ dist/
 build/
 coverage/
 .pytest_cache/
+
+manual_test.db

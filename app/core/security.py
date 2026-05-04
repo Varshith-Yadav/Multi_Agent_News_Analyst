@@ -108,7 +108,7 @@ def decode_access_token(token: str) -> TokenData:
 def authenticate_user(username: str, password: str) -> tuple[str, list[str]] | None:
     settings = get_settings()
     normalized_username = username.strip().lower()
-    users = {key.strip().lower(): value for key, value in settings.auth_demo_users_json.items()}
+    users = {key.strip().lower(): value for key, value in settings.seed_users().items()}
     with _users_lock:
         users.update(_runtime_users)
     user_record = users.get(normalized_username)
@@ -131,9 +131,9 @@ def register_user(username: str, password: str) -> tuple[str, list[str]]:
         raise ValueError("Password must contain at least 8 characters.")
 
     settings = get_settings()
-    demo_users = {key.strip().lower() for key in settings.auth_demo_users_json.keys()}
+    seeded_users = {key.strip().lower() for key in settings.seed_users().keys()}
     with _users_lock:
-        if normalized_username in demo_users or normalized_username in _runtime_users:
+        if normalized_username in seeded_users or normalized_username in _runtime_users:
             raise ValueError("Username already exists.")
 
         roles = ["analyst", "viewer"]
