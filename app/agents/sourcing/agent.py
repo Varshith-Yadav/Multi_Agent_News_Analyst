@@ -33,7 +33,7 @@ def fetch_wikipedia_summary(query: str) -> str:
             search_data = json.loads(response.read().decode())
             if len(search_data) > 1 and search_data[1]:
                 title = search_data[1][0]
-                content_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&format=json&titles={urllib.parse.quote(title)}"
+                content_url = f"https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&redirects=1&format=json&titles={urllib.parse.quote(title)}"
                 req2 = urllib.request.Request(content_url, headers={'User-Agent': 'Mozilla/5.0'})
                 with urllib.request.urlopen(req2, timeout=5) as response2:
                     data2 = json.loads(response2.read().decode())
