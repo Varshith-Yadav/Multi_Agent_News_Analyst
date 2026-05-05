@@ -38,12 +38,19 @@ def summarize_agent(state):
     except Exception:
         fallback_summary = ""
         try:
+            # Try a raw non-JSON LLM call if JSON schema failed
             fallback_summary = call_llm(
-                "Summarize this news topic in 3 concise factual sentences with no markdown:\n\n"
+                "Summarize this news topic in 3 concise factual sentences:\n\n"
                 f"{content}"
             ).strip()
+            # If the fallback returned the prompt itself (due to stub fallback), clear it
+            if fallback_summary.startswith("Summarize this news topic"):
+                fallback_summary = ""
         except Exception:
-            sentences = [segment.strip() for segment in content.split(".") if segment.strip()]
+            pass
+
+        if not fallback_summary:
+            sentences = [segment.strip() for segment in content.replace('\n', '. ').split(".") if segment.strip()]
             fallback_summary = ". ".join(sentences[:3]).strip()
             if fallback_summary and not fallback_summary.endswith("."):
                 fallback_summary += "."
